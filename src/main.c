@@ -1,5 +1,5 @@
 //*********************************************/
-// RX
+// TX
 //*********************************************/
 
 #include <zephyr/kernel.h>
@@ -55,24 +55,51 @@ int dw1000_spi_write(const struct device *spi_dev, uint8_t reg, uint8_t *data, s
     return ret;
 }
 
+int dw1000_spi_subwrite(const struct device *spi_dev, uint8_t reg, uint8_t subreg, uint8_t *data, size_t len)
+{
+    uint8_t tx_buf[2 + len];        // (Header + address) + sub-address + data
+
+    tx_buf[0] = 0xC0 | reg;         // Op + address
+    tx_buf[1] = subreg;             // Sub-address
+    memcpy(&tx_buf[2], data, len);  // Data
+
+    struct spi_buf tx_bufs[] = {
+        {.buf = tx_buf, .len = sizeof(tx_buf)},
+    };
+
+    struct spi_buf_set tx = {.buffers = tx_bufs, .count = 1};
+
+    gpio_pin_set_dt(&cs_gpio, 0); // Assert CS
+    int ret = spi_write_dt(&spispec, &tx);
+    gpio_pin_set_dt(&cs_gpio, 1); // Deassert CS
+
+    if (ret) {
+        LOG_ERR("SPI sub-register write failed: %d", ret);
+    }
+    return ret;
+}
+
 int dw1000_spi_read(const struct device *spi_dev, uint8_t reg, uint8_t *data, size_t len)
 {
-    uint8_t tx_buf[2];
+    uint8_t tx_buf[1];
     tx_buf[0] = reg & 0x3F; // Read operation: MSB=0
-    tx_buf[1] = 0;
+    // tx_buf[1] = 0;
 
     struct spi_buf tx_bufs[] = {
         {.buf = &tx_buf, .len = 1}, // Send register address
     };
     struct spi_buf rx_bufs[] = {
+        {.buf = NULL, .len = 1},
         {.buf = data, .len = len}, // Receive data
     };
 
     struct spi_buf_set tx = {.buffers = tx_bufs, .count = 1};
-    struct spi_buf_set rx = {.buffers = rx_bufs, .count = 1};
+    struct spi_buf_set rx = {.buffers = rx_bufs, .count = 2};
 
     gpio_pin_set_dt(&cs_gpio, 0); // Assert CS
+    k_msleep(1);
     int ret = spi_transceive_dt(&spispec, &tx, &rx);
+    k_msleep(1);
     gpio_pin_set_dt(&cs_gpio, 1); // Deassert CS
 
     if (ret)
@@ -83,9 +110,9 @@ int dw1000_spi_read(const struct device *spi_dev, uint8_t reg, uint8_t *data, si
 
     // Log the received data
     LOG_INF("SPI read successful. Data from register 0x%X: ", reg);
-    for (size_t i = 1; i < len; i++)
+    for (size_t i = 0; i < len; i++)
     {
-        LOG_INF("Byte %zu: 0x%02X", i - 1, data[i]);
+        LOG_INF("Byte %zu: 0x%02X", i, data[i]);
     }
 
     return 0;
@@ -123,50 +150,55 @@ int main(void)
 
     while (1)
     {
-        LOG_INF("\n[RX]");
+        LOG_INF("\n[TX]");
 
-        // Read and verify Device ID
+        // Device ID
         uint8_t dev_id[4] = {0};
         dw1000_spi_read(spi_dev, 0x00, dev_id, sizeof(dev_id));
 
-        uint8_t chan_ctrl[4] = {0x25, 0x00, 0x00, 0x00}; // Channel 5, Preamble Code 3
+        // TX_BUFFER = 0x09
+        uint8_t tx_data[4] = {0xDE, 0xDE, 0xDE, 0xDE};             
+        dw1000_spi_write(spi_dev, 0x09, tx_data, sizeof(tx_data)); 
+
+        // Read TX BUFFER
+        uint8_t tx_buffer[4] = {0};
+        dw1000_spi_read(spi_dev, 0x09, tx_buffer, sizeof(tx_buffer));
+
+        // TX_FCTRL = 0x08
+        uint8_t tx_fctrl[4] = {0x06, 0x40, 0x05, 0x00}; // unsure!
+        dw1000_spi_write(spi_dev, 0x08, tx_fctrl, sizeof(tx_fctrl));
+
+        // CHAN_CTRL = 0x1F
+        uint8_t chan_ctrl[4] = {0x11, 0x00, 0x44, 0x08}; // channel 1, preamble code 1
         dw1000_spi_write(spi_dev, 0x1F, chan_ctrl, sizeof(chan_ctrl));
 
-        // Configure RX Frame Control Register (TX settings must match this!)
-        uint8_t rx_fctrl[5] = {0x0C, 0x00, 0x42, 0x00, 0x00}; // Frame length, 6.8Mbps, 16MHz PRF
-        dw1000_spi_write(spi_dev, 0x08, rx_fctrl, sizeof(rx_fctrl));
+        // RF_TXCTRL = 0x28 : 0C
+        uint8_t rf_txctrl[4] = {0x40, 0x5C, 0x00, 0x00}; // for tx channel 1
+        dw1000_spi_subwrite(spi_dev, 0x28, 0x0C, rf_txctrl, sizeof(rf_txctrl));
 
-        // Enable RX Auto-Reenable BEFORE enabling RX
-        uint8_t sys_cfg[4] = {0x20, 0x00, 0x00, 0x00}; // Enable RX auto-reenable
-        dw1000_spi_write(spi_dev, 0x04, sys_cfg, sizeof(sys_cfg));
+        // TC_PGDELAY = 0x2A : 0B
+        uint8_t tc_pgdelay[1] = {0xC9}; // for tx channel 1
+        dw1000_spi_subwrite(spi_dev, 0x2A, 0x0B, tc_pgdelay, sizeof(tc_pgdelay));
 
-        // Clear RX Status Flags before polling
-        uint8_t clear_status[4] = {0xE0, 0x00, 0x00, 0x00}; // Clear RX flags
-        dw1000_spi_write(spi_dev, 0x0F, clear_status, sizeof(clear_status));
+        // FS_PLLCFG = 0x2B : 07
+        uint8_t fs_pllcfg[4] = {0x07, 0x04, 0x00, 0x09}; // for tx channel 1
+        dw1000_spi_subwrite(spi_dev, 0x2B, 0x07, fs_pllcfg, sizeof(fs_pllcfg));
 
-        // Enable Receiver
-        uint8_t sys_ctrl[1] = {0x01}; // Enable RX
+        // SYSTEM CONTROL = 0x0D -> start transmission
+        uint8_t sys_ctrl[1] = {0x02}; // Set TXSTRT bit
         dw1000_spi_write(spi_dev, 0x0D, sys_ctrl, sizeof(sys_ctrl));
 
-        // Wait for a valid frame (RXFCG bit in SYS_STATUS)
+        // SYSTEM EVENT = 0x0F -> wait for transmission completion
         uint8_t sys_status[4] = {0};
         do
         {
             dw1000_spi_read(spi_dev, 0x0F, sys_status, sizeof(sys_status));
-        } while (!(sys_status[0] & 0x40)); // Check RXFCG bit
+        } while (!(sys_status[0] & 0x80)); // Check TXFRS bit
 
-        // Read received data
-        uint8_t rx_data[10]; // Adjust based on expected frame size
-        dw1000_spi_read(spi_dev, 0x11, rx_data, sizeof(rx_data));
+        LOG_INF("Transmission complete!");
 
-        LOG_INF("Received Data:");
-        for (size_t i = 0; i < sizeof(rx_data); i++)
-        {
-            LOG_INF("Byte %zu: 0x%02X", i, rx_data[i]);
-        }
-
-        // Clear RX flags
-        clear_status[0] = 0xE0;
+        // SYSTEM EVENT = 0x0F -> clear TXFRS flag
+        uint8_t clear_status[4] = {0x80, 0x00, 0x00, 0x00};
         dw1000_spi_write(spi_dev, 0x0F, clear_status, sizeof(clear_status));
 
         k_msleep(SLEEP_TIME_MS);
@@ -174,3 +206,4 @@ int main(void)
 
     return 0;
 }
+
