@@ -22,7 +22,7 @@ int main(void)
 
     while (1)
     {
-        LOG_INF("\n[TX]");
+        LOG_INF("SIMPLE_TX");
 
         // Device ID
         uint32_t dev_id;
@@ -51,7 +51,6 @@ int main(void)
 
         k_msleep(SLEEP_TIME_MS);
     }
-
+ 
     return 0;
 }
-
