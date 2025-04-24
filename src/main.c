@@ -21,21 +21,30 @@ int main(void)
     LOG_INF("\n[TX]");
     uint32_t dev_id;
     dw1000_read_u32(0x00, &dev_id);
-    // initialize();
-    dw1000_default_config();
 
+    // generic_default_configs();
+    // tx_default_configs();
+    // additional_default_configs();
+
+    // initialize();
     // configure();
 
     while (1)
     {
         LOG_INF("SIMPLE_TX");
 
+        reset_devices();
+
+        generic_default_configs();
+        tx_default_configs();
+        additional_default_configs();
+
         // Device ID
         uint32_t dev_id;
         dw1000_read_u32(0x00, &dev_id);
 
         // TX_BUFFER = 0x09
-        uint32_t tx_data = 0xACACCCAC;
+        uint32_t tx_data = 0xAABAAB;
         dw1000_write_u32(0x09, tx_data);
 
         // uint32_t reg32 = pdw1000local.txFCTRL | sizeof(tx_data) | (0 << 22) | (0 << 15);
@@ -50,7 +59,7 @@ int main(void)
         tx_fctrl |= (1 << 20);  // PE = 01
         tx_fctrl |= (0 << 22);  // TXBOFFS = 0x000
 
-        dw1000_write_u32(TX_FCTRL, tx_fctrl);
+        // dw1000_write_u32(TX_FCTRL, tx_fctrl);
 
         tx_start();
         // SYSTEM EVENT = 0x0F -> wait for transmission completion
