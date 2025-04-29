@@ -43,7 +43,7 @@ int main(void)
         } while (!(sys_status & SYS_STATUS_TXFRS)); // Check TXFRS bit
 
         uint64_t T1 = get_tx_timestamp();
-        LOG_INF("TX success! T1 = %llX", T1);
+        LOG_INF("TX success! T1 = %08llX", T1);
 
         // SYSTEM EVENT = 0x0F -> clear TXFRS flag
         dw1000_write_u32(SYS_STATUS, SYS_STATUS_TXFRS);
