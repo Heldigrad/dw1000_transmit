@@ -14,39 +14,44 @@ int main(void)
     gpio_pin_configure_dt(&reset_gpio, GPIO_OPEN_DRAIN | GPIO_OUTPUT);
     reset_devices();
 
+    uint32_t tx_data = 0x12345678;
+    uint32_t status;
+
     while (1)
     {
         LOG_INF("\n\n");
         LOG_INF("TX");
 
         // Device ID
-        // uint32_t dev_id;
-        // dw1000_read_u32(0x00, &dev_id);
+        uint32_t dev_id;
 
         reset_devices();
 
-        generic_default_configs(4);
-        tx_default_configs();
-        additional_default_configs();
+        // dw1000_read_u32(0x00, &dev_id);
+
+        stolen_init();
+        stolen_configure();
 
         // TX_BUFFER = 0x09
-        uint32_t tx_data = POLL_MSG; // Poll message - to initiate ranging
+        // Write the data to the IC TX buffer, (-2 bytes for auto generated CRC)
         dw1000_write_u32(TX_BUFFER, tx_data);
 
-        tx_start();
-        // SYSTEM EVENT = 0x0F -> wait for transmission completion
-        uint32_t sys_status;
-        do
-        {
-            dw1000_read_u32(SYS_STATUS, &sys_status);
-            k_msleep(10);
-        } while (!(sys_status & SYS_STATUS_TXFRS)); // Check TXFRS bit
+        stolen_set_txfctrl(6, 0, 0);
 
+        stolen_tx_start(0);
+
+        dw1000_read_u32(SYS_STATUS, &status);
+        while (!(status & SYS_STATUS_TXFRS))
+        {
+            dw1000_read_u32(SYS_STATUS, &status);
+        }
         uint64_t T1 = get_tx_timestamp();
         LOG_INF("TX success! T1 = %08llX", T1);
 
-        // SYSTEM EVENT = 0x0F -> clear TXFRS flag
+        /* Clear TX frame sent event. */
         dw1000_write_u32(SYS_STATUS, SYS_STATUS_TXFRS);
+
+        k_msleep(TX_SLEEP_TIME_MS);
 
         // RECEIVE response
         // generic_default_configs(4);
@@ -81,8 +86,6 @@ int main(void)
         //     LOG_INF("Reception failed. Resend message! Clearing err bits...");
         //     dw1000_write_u32(SYS_STATUS, SYS_STATUS_ALL_RX_ERR);
         // }
-
-        k_msleep(SLEEP_TIME_MS);
     }
 
     return 0;
