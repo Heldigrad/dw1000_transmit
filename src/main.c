@@ -21,7 +21,7 @@ int main(void)
 
     dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
 
-    uint32_t tx_data = 0xB00B135;
+    uint32_t tx_data = 0x12345678;
     uint32_t status;
 
     while (1)
