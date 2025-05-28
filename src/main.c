@@ -2,8 +2,8 @@
 // TX
 //*********************************************/
 
-// #include "C:\Users\agape\Documents\LICENTA\functions\includes.h" // on laptop
-#include "C:\Users\agape\Documents\LICENTA\dw1000_app\DW1000-driver\includes.h" // on PC
+#include "C:\Users\agape\Documents\LICENTA\functions\includes.h" // on laptop
+// #include "C:\Users\agape\Documents\LICENTA\dw1000_app\DW1000-driver\includes.h" // on PC
 
 int main(void)
 {
@@ -15,13 +15,13 @@ int main(void)
     gpio_pin_configure_dt(&reset_gpio, GPIO_OPEN_DRAIN | GPIO_OUTPUT);
     reset_devices();
 
-    new_init();
-    new_configure();
-
-    dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
+    bip_init();
+    bip_config();
 
     uint32_t tx_data = 0x12345678;
     uint32_t status;
+
+    dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
 
     while (1)
     {
@@ -34,7 +34,7 @@ int main(void)
         // Write the data to the IC TX buffer, (-2 bytes for auto generated CRC)
         dw1000_write_u32(TX_BUFFER, tx_data);
 
-        new_set_txfctrl(6, 0, 0);
+        new_set_txfctrl(6, 0, 1);
 
         new_tx_start(0);
 
