@@ -2,7 +2,8 @@
 // TX
 //*********************************************/
 
-#include "C:\Users\agape\Documents\LICENTA\functions\includes.h"
+// #include "C:\Users\agape\Documents\LICENTA\functions\includes.h" // on laptop
+#include "C:\Users\agape\Documents\LICENTA\dw1000_app\DW1000-driver\includes.h" // on PC
 
 int main(void)
 {
@@ -12,8 +13,6 @@ int main(void)
         return 1;
     }
     gpio_pin_configure_dt(&reset_gpio, GPIO_OPEN_DRAIN | GPIO_OUTPUT);
-    reset_devices();
-
     reset_devices();
 
     new_init();
