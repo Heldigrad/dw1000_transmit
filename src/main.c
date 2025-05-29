@@ -2,8 +2,8 @@
 // TX
 //*********************************************/
 
-#include "C:\Users\agape\Documents\LICENTA\functions\includes.h" // on laptop
-// #include "C:\Users\agape\Documents\LICENTA\dw1000_app\DW1000-driver\includes.h" // on PC
+#include "C:\Users\agape\Documents\LICENTA\functions\devices.h"
+#include "C:\Users\agape\Documents\LICENTA\functions\dw1000_ranging_functions.h"
 
 int main(void)
 {
@@ -15,79 +15,67 @@ int main(void)
     gpio_pin_configure_dt(&reset_gpio, GPIO_OPEN_DRAIN | GPIO_OUTPUT);
     reset_devices();
 
+    LOG_INF("TX");
+
     bip_init();
     bip_config();
 
-    uint32_t tx_data = 0x12345678;
-    uint32_t status;
-
+    uint64_t T1, T2, T3, T4, aux;
+    uint64_t Tround, Treply, Tprop;
+    const double SPEED_OF_LIGHT = 299702547.0;
+    double distance, tof;
+    int ok = 1;
     dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
 
-    while (1)
+    dw1000_subwrite_u40(TX_TIME, 0x00, 0x00);
+    dw1000_subwrite_u40(RX_TIME, 0x00, 0x00);
+
+    // while (1)
     {
         LOG_INF("\n\n");
-        LOG_INF("TX");
 
-        // Device ID
-        uint32_t dev_id;
-        // TX_BUFFER = 0x09
-        // Write the data to the IC TX buffer, (-2 bytes for auto generated CRC)
-        dw1000_write_u32(TX_BUFFER, tx_data);
-
-        new_set_txfctrl(6, 0, 1);
-
-        new_tx_start(0);
-
-        dw1000_read_u32(SYS_STATUS, &status);
-        while (!(status & SYS_STATUS_TXFRS))
+        if (transmit(POLL_MSG, 5, &T1) == SUCCESS)
         {
-            dw1000_read_u32(SYS_STATUS, &status);
+            LOG_INF("TX Success! Waiting for timestamp nr. 2");
+            if (receive(&T2, &T4) == SUCCESS)
+            {
+                LOG_INF("TX Success! Waiting for timestamp nr. 3");
+                if (receive(&T3, &aux) == SUCCESS)
+                {
+                    LOG_INF("All required timestamps were acquired!");
+                }
+                else
+                {
+                    ok = 0;
+                }
+            }
+            else
+            {
+                ok = 0;
+            }
+        }
+        else
+        {
+            ok = 0;
         }
 
-        print_enabled_bits(status);
+        if (ok == 0)
+        {
+            LOG_INF("Something went wrong. Please try again!");
+        }
+        else
+        {
+            Tround = T4 - T1;
+            Tprop = (Tround - Treply) / 2;
+            tof = (double)Tprop * DWT_TIME_UNITS;
+            distance = Tprop * SPEED_OF_LIGHT;
+            LOG_INF("T1 = %llX, T2 = %llX, T3 = %llX, T4 = %llX, Distance = %llX", T1, T2, T3, T4, distance);
+        }
 
-        uint64_t T1 = get_tx_timestamp();
-        LOG_INF("TX success! T1 = %09llX", T1);
-
-        /* Clear TX frame sent event. */
-        dw1000_write_u32(SYS_STATUS, SYS_STATUS_TXFRS);
-
-        k_msleep(TX_SLEEP_TIME_MS);
-
-        // RECEIVE response
-        // generic_default_configs(4);
-        // rx_default_configs();
-        // // additional_default_configs();
-
-        // rx_enable();
-
-        // // Wait for a valid frame (RXFCG bit in SYS_STATUS)
-        // uint32_t sys_status_1 = {0};
-        // do
-        // {
-        //     dw1000_read_u32(SYS_STATUS, &sys_status_1);
-        //     k_msleep(100);
-        // } while (!(sys_status_1 & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_ERR))); // Check ERR bits | RXFCG bit
-
-        // if (sys_status_1 & SYS_STATUS_RXFCG)
-        // {
-        //     // Read received data
-        //     uint64_t T4 = get_rx_timestamp();
-        //     LOG_INF("Reception success! T4 = %X", T4);
-        //     uint32_t T2;
-        //     dw1000_read_u32(RX_BUFFER, &T2);
-
-        //     // Clear status bit
-        //     // LOG_INF("Clearing status bit...");
-        //     dw1000_write_u32(SYS_STATUS, SYS_STATUS_RX_OK);
-        // }
-        // else
-        // {
-        //     // Clear err bits
-        //     LOG_INF("Reception failed. Resend message! Clearing err bits...");
-        //     dw1000_write_u32(SYS_STATUS, SYS_STATUS_ALL_RX_ERR);
-        // }
+        k_msleep(RX_SLEEP_TIME_MS);
     }
 
     return 0;
 }
+
+// To try: 5.4 Transmit and automatically wait for response
