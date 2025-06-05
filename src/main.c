@@ -2,8 +2,11 @@
 // TX
 //*********************************************/
 
-#include "C:\Users\agape\Documents\LICENTA\functions\devices.h"
-#include "C:\Users\agape\Documents\LICENTA\functions\dw1000_ranging_functions.h"
+// #include "C:\Users\agape\Documents\LICENTA\functions\devices.h"
+// #include "C:\Users\agape\Documents\LICENTA\functions\dw1000_ranging_functions.h"
+
+#include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\devices.h"
+#include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\dw1000_ranging_functions.h"
 
 int main(void)
 {
@@ -25,50 +28,56 @@ int main(void)
     set_rx_antenna_delay(RX_ANT_DLY);
     set_tx_antenna_delay(TX_ANT_DLY);
 
-    uint64_t T1, T2, T3, T4, aux;
+    set_rx_after_tx_delay(POLL_TX_TO_RESP_RX_DLY_UUS);
+    set_rx_timeout(RESP_RX_TIMEOUT_UUS);
+
+    uint64_t T1, T2, T3, T4, aux, status_reg;
     double distance;
     int cnt = 0;
     dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
 
     double mean = 0;
 
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         LOG_INF("\n\n");
 
         dw1000_subwrite_u40(TX_TIME, 0x00, 0x00);
         dw1000_subwrite_u40(RX_TIME, 0x00, 0x00);
 
-        if (transmit(POLL_MSG, 5, &T1) == SUCCESS)
+        // transmit poll message, then immediately wait for response
+        dw1000_subwrite_u64(TX_BUFFER, 0x00, POLL_MSG);
+
+        new_set_txfctrl(5);
+
+        new_tx_start(2);
+
+        if (!(status_reg & SYS_STATUS_ALL_RX_ERR))
         {
-            // LOG_INF("TX Success! Waiting for timestamp nr. 2");
-            if (receive(&T2, &T4) == SUCCESS)
-            {
-                // LOG_INF("TX Success! Waiting for timestamp nr. 3");
-                if (receive(&T3, &aux) == SUCCESS)
-                {
-                    // LOG_INF("All required timestamps were acquired!");
-                }
-                else
-                {
-                    continue;
-                }
-            }
-            else
-            {
-                continue;
-            }
+            T4 = get_rx_timestamp();
+            T1 = get_tx_timestamp();
+            dw1000_subread_u64(RX_BUFFER, 0x00, &T2);
+            /* Clear good RX frame event in the DW1000 status register. */
+            dw1000_write_u32(SYS_STATUS, SYS_STATUS_RXFCG);
         }
         else
         {
-            continue;
+            LOG_INF("Errors encountered!");
+            print_enabled_bits(status_reg);
+
+            /* Clear RX error events in the DW1000 status register. */
+            dw1000_write_u32(SYS_STATUS, SYS_STATUS_ALL_RX_ERR);
+            rx_soft_reset();
         }
+
+        receive(&T3, &aux);
+
+        dw1000_write_u32(SYS_STATUS, SYS_STATUS_TX_OK); // Clear tx status ok
 
         distance = compute_distance(T1, T2, T3, T4);
         LOG_INF("T1 = %llX, T2 = %llX, T3 = %llX, T4 = %llX, Distance = %f m", T1, T2, T3, T4, distance);
         mean += distance;
         cnt++;
-        // k_msleep(RX_SLEEP_TIME_MS);
     }
 
     mean /= cnt;
@@ -76,5 +85,3 @@ int main(void)
 
     return 0;
 }
-
-// To try: 5.4 Transmit and automatically wait for response
