@@ -2,8 +2,11 @@
 // TX
 //*********************************************/
 
-#include "C:\Users\agape\Documents\LICENTA\functions\devices.h"
-#include "C:\Users\agape\Documents\LICENTA\functions\dw1000_ranging_functions.h"
+// #include "C:\Users\agape\Documents\LICENTA\functions\devices.h"
+// #include "C:\Users\agape\Documents\LICENTA\functions\dw1000_ranging_functions.h"
+
+#include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\devices.h"
+#include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\dw1000_ranging_functions.h"
 
 int main(void)
 {
@@ -25,16 +28,15 @@ int main(void)
     set_rx_antenna_delay(RX_ANT_DLY);
     set_tx_antenna_delay(TX_ANT_DLY);
 
-    // set_rx_after_tx_delay(POLL_TX_TO_RESP_RX_DLY_UUS);
-    // set_rx_timeout(RESP_RX_TIMEOUT_UUS * 8000000);
-
     uint64_t T1, T4;
-    dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
-    int kk;
-    uint8_t Msg_id = 0;
 
     while (1)
     {
+
+        // uint32_t dev_id;
+        // dw1000_subread_u32(0x00, 0x00, &dev_id);
+        // LOG_INF("Test: %X", dev_id);
+
         dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
 
         T1 = send_poll_message(Dev_id, 0x01);
