@@ -18,7 +18,7 @@ int main(void)
     gpio_pin_configure_dt(&reset_gpio, GPIO_OPEN_DRAIN | GPIO_OUTPUT);
     reset_devices();
 
-    LOG_INF("TX");
+    LOG_INF("INIT");
 
     uint8_t Dev_id = 0x00;
 
@@ -32,11 +32,6 @@ int main(void)
 
     while (1)
     {
-
-        // uint32_t dev_id;
-        // dw1000_subread_u32(0x00, 0x00, &dev_id);
-        // LOG_INF("Test: %X", dev_id);
-
         dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
 
         T1 = send_poll_message(Dev_id, 0x01);
