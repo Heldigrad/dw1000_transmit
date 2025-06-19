@@ -29,20 +29,35 @@ int main(void)
     set_tx_antenna_delay(TX_ANT_DLY);
 
     uint64_t T1, T4;
+    uint8_t Msg_id = 0;
 
     while (1)
     {
         dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
 
-        T1 = send_poll_message(Dev_id, 0x01);
-        k_msleep(5);
+        T1 = send_poll_message(Dev_id, 0x01, Msg_id);
+        if (ERR_LOGS_EN)
+        {
+            LOG_INF("POLL sent to RESP.");
+        }
 
         T4 = 0;
-        if (get_resp_message(0x01, Dev_id, &T4) == SUCCESS)
+        if (get_resp_message(0x01, Dev_id, Msg_id, &T4) == SUCCESS)
         {
-            k_msleep(5);
-            send_timestamps(Dev_id, T1, T4);
+            if (INFO_LOGS_EN)
+            {
+                LOG_INF("Response received from RESP.");
+            }
+
+            send_timestamps(Dev_id, T1, T4, 0x01, Msg_id);
+            // LOG_INF("For msg = %0d, T1 = %0llX, T4 = %0llX", Msg_id, T1, T4);
+
+            if (INFO_LOGS_EN)
+            {
+                LOG_INF("Sent TS %0d to RESP.", Msg_id);
+            }
         }
-        k_msleep(5);
+
+        Msg_id++;
     }
 }
