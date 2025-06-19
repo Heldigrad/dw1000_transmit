@@ -20,7 +20,7 @@ int main(void)
 
     LOG_INF("INIT");
 
-    uint8_t Dev_id = 0x00;
+    uint8_t Dev_id = TAG_ID;
 
     bip_init();
     bip_config();
@@ -42,14 +42,14 @@ int main(void)
         }
 
         T4 = 0;
-        if (get_resp_message(0x01, Dev_id, Msg_id, &T4) == SUCCESS)
+        if (get_resp_message(Dev_id, 0x01, Msg_id, &T4) == SUCCESS)
         {
             if (INFO_LOGS_EN)
             {
                 LOG_INF("Response received from RESP.");
             }
 
-            send_timestamps(Dev_id, T1, T4, 0x01, Msg_id);
+            send_timestamps(Dev_id, 0x01, T1, T4, Msg_id);
             // LOG_INF("For msg = %0d, T1 = %0llX, T4 = %0llX", Msg_id, T1, T4);
 
             if (INFO_LOGS_EN)
