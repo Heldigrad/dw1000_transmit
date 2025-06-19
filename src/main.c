@@ -30,34 +30,49 @@ int main(void)
 
     uint64_t T1, T4;
     uint8_t Msg_id = 0;
+    double distance;
 
     while (1)
     {
-        dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
-
-        T1 = send_poll_message(Dev_id, 0x01, Msg_id);
-        if (ERR_LOGS_EN)
+        for (uint8_t anchor_id = 1; anchor_id < 5; ++anchor_id)
         {
-            LOG_INF("POLL sent to RESP.");
-        }
-
-        T4 = 0;
-        if (get_resp_message(Dev_id, 0x01, Msg_id, &T4) == SUCCESS)
-        {
-            if (INFO_LOGS_EN)
+            while (1)
             {
-                LOG_INF("Response received from RESP.");
-            }
+                dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
 
-            send_timestamps(Dev_id, 0x01, T1, T4, Msg_id);
-            // LOG_INF("For msg = %0d, T1 = %0llX, T4 = %0llX", Msg_id, T1, T4);
+                T1 = send_poll_message(Dev_id, anchor_id, Msg_id);
+                if (ERR_LOGS_EN)
+                {
+                    LOG_INF("POLL sent to RESP.");
+                }
 
-            if (INFO_LOGS_EN)
-            {
-                LOG_INF("Sent TS %0d to RESP.", Msg_id);
+                T4 = 0;
+                if (get_resp_message(Dev_id, anchor_id, Msg_id, &T4, &distance) == SUCCESS)
+                {
+                    if (INFO_LOGS_EN)
+                    {
+                        LOG_INF("Response received from RESP.");
+                    }
+
+                    if (distance != 0)
+                    {
+                        LOG_INF("Distance from anchor %0d is %0.2fm", anchor_id, distance);
+                        break;
+                    }
+                    else
+                    {
+                        send_timestamps(Dev_id, anchor_id, T1, T4, Msg_id);
+                        // LOG_INF("For msg = %0d, T1 = %0llX, T4 = %0llX", Msg_id, T1, T4);
+
+                        if (INFO_LOGS_EN)
+                        {
+                            LOG_INF("Sent TS %0d to RESP.", Msg_id);
+                        }
+                    }
+                }
+
+                Msg_id++;
             }
         }
-
-        Msg_id++;
     }
 }
