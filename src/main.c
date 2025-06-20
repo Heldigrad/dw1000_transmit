@@ -2,11 +2,11 @@
 // TX
 //*********************************************/
 
-// #include "C:\Users\agape\Documents\LICENTA\functions\devices.h"
-// #include "C:\Users\agape\Documents\LICENTA\functions\dw1000_ranging_functions.h"
+#include "C:\Users\agape\Documents\LICENTA\functions\devices.h"
+#include "C:\Users\agape\Documents\LICENTA\functions\dw1000_ranging_functions.h"
 
-#include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\devices.h"
-#include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\dw1000_ranging_functions.h"
+// #include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\devices.h"
+// #include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\dw1000_ranging_functions.h"
 
 int main(void)
 {
@@ -28,14 +28,18 @@ int main(void)
     set_rx_antenna_delay(RX_ANT_DLY);
     set_tx_antenna_delay(TX_ANT_DLY);
 
-    uint64_t T1, T4;
-    uint8_t Msg_id = 0;
+    uint64_t T1,
+        T4;
+    uint8_t Msg_id;
     double distance;
 
     while (1)
     {
-        for (uint8_t anchor_id = 1; anchor_id < 5; ++anchor_id)
+        for (uint8_t anchor_id = 1; anchor_id < 3; ++anchor_id)
         {
+            Msg_id = 0;
+            distance = 0;
+
             while (1)
             {
                 dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
@@ -43,20 +47,22 @@ int main(void)
                 T1 = send_poll_message(Dev_id, anchor_id, Msg_id);
                 if (ERR_LOGS_EN)
                 {
-                    LOG_INF("POLL sent to RESP.");
+                    LOG_INF("POLL %0d sent to anchor nr. %0d.", Msg_id, anchor_id);
                 }
 
+                dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
                 T4 = 0;
+
                 if (get_resp_message(Dev_id, anchor_id, Msg_id, &T4, &distance) == SUCCESS)
                 {
                     if (INFO_LOGS_EN)
                     {
-                        LOG_INF("Response received from RESP.");
+                        LOG_INF("Response %0d received from anchor nr. %0d.", Msg_id, anchor_id);
                     }
 
                     if (distance != 0)
                     {
-                        LOG_INF("Distance from anchor %0d is %0.2fm", anchor_id, distance);
+                        LOG_INF("Distance from anchor %0d is %0.2fm.", anchor_id, distance);
                         break;
                     }
                     else
@@ -66,13 +72,15 @@ int main(void)
 
                         if (INFO_LOGS_EN)
                         {
-                            LOG_INF("Sent TS %0d to RESP.", Msg_id);
+                            LOG_INF("Sent TS %0d to anchor nr. %0d.", Msg_id, anchor_id);
                         }
                     }
                 }
 
                 Msg_id++;
             }
+
+            k_msleep(10);
         }
     }
 }
