@@ -2,11 +2,13 @@
 // TX
 //*********************************************/
 
-#include "C:\Users\agape\Documents\LICENTA\functions\devices.h"
-#include "C:\Users\agape\Documents\LICENTA\functions\dw1000_ranging_functions.h"
+// #include "C:\Users\agape\Documents\LICENTA\functions\devices.h"
+// #include "C:\Users\agape\Documents\LICENTA\functions\dw1000_ranging_functions.h"
 
-// #include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\devices.h"
-// #include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\dw1000_ranging_functions.h"
+#include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\devices.h"
+#include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\dw1000_ranging_functions.h"
+
+double distances[NR_OF_ANCHORS] = {0};
 
 int main(void)
 {
@@ -25,18 +27,16 @@ int main(void)
     bip_init();
     bip_config();
 
-    set_rx_antenna_delay(RX_ANT_DLY);
-    set_tx_antenna_delay(TX_ANT_DLY);
-
-    uint64_t T1,
-        T4;
+    uint64_t T1, T4;
     uint8_t Msg_id;
     double distance;
 
     while (1)
     {
-        for (uint8_t anchor_id = 1; anchor_id < 3; ++anchor_id)
+        for (uint8_t anchor_id = 1; anchor_id <= NR_OF_ANCHORS; ++anchor_id)
         {
+            set_antenna_delay(anchor_id);
+
             Msg_id = 0;
             distance = 0;
 
@@ -62,7 +62,8 @@ int main(void)
 
                     if (distance != 0)
                     {
-                        LOG_INF("Distance from anchor %0d is %0.2fm.", anchor_id, distance);
+                        distances[anchor_id - 1] = distance;
+                        LOG_INF("Distance from anchor %0d is %0.2fm.", anchor_id, distances[anchor_id - 1]);
                         break;
                     }
                     else
@@ -82,5 +83,6 @@ int main(void)
 
             k_msleep(10);
         }
+        LOG_INF("All distances acquired!");
     }
 }
