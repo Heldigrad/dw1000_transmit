@@ -2,11 +2,11 @@
 // TX
 //*********************************************/
 
-// #include "C:\Users\agape\Documents\LICENTA\functions\devices.h"
-// #include "C:\Users\agape\Documents\LICENTA\functions\dw1000_ranging_functions.h"
+#include "C:\Users\agape\Documents\LICENTA\functions\devices.h"
+#include "C:\Users\agape\Documents\LICENTA\functions\dw1000_ranging_functions.h"
 
-#include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\devices.h"
-#include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\dw1000_ranging_functions.h"
+// #include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\devices.h"
+// #include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\dw1000_ranging_functions.h"
 
 double distances[NR_OF_ANCHORS] = {0};
 
@@ -24,8 +24,8 @@ int main(void)
 
     uint8_t Dev_id = TAG_ID;
 
-    bip_init();
-    bip_config();
+    initialise();
+    configure();
 
     uint64_t T1, T4;
     uint8_t Msg_id;
