@@ -2,11 +2,11 @@
 // TX
 //*********************************************/
 
-// #include "C:\Users\agape\Documents\LICENTA\functions\devices.h"
-// #include "C:\Users\agape\Documents\LICENTA\functions\dw1000_ranging_functions.h"
+#include "C:\Users\agape\Documents\LICENTA\functions\devices.h"
+#include "C:\Users\agape\Documents\LICENTA\functions\dw1000_ranging_functions.h"
 
-#include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\devices.h"
-#include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\dw1000_ranging_functions.h"
+// #include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\devices.h"
+// #include "C:\Users\agape\Documents\LICENTA\dw1000_app\functions\dw1000_ranging_functions.h"
 
 double distances[NR_OF_ANCHORS] = {0};
 
@@ -14,22 +14,23 @@ int main(void)
 {
     if (check_devices_ready())
     {
-        LOG_ERR("Devices not ready!");
+        LOG_ERR_IF_ENABLED("Devices not ready!");
         return 1;
     }
     gpio_pin_configure_dt(&reset_gpio, GPIO_OPEN_DRAIN | GPIO_OUTPUT);
     reset_devices();
 
-    LOG_INF("INIT");
+    LOG_INF_IF_ENABLED("INIT");
 
     uint8_t Dev_id = TAG_ID;
 
     bip_init();
     bip_config();
 
-    uint64_t T1, T4;
+    uint64_t T1, T2, T3, T4, T5, T6;
     uint8_t Msg_id;
     double distance;
+    int ret;
 
     while (1)
     {
@@ -40,49 +41,45 @@ int main(void)
             Msg_id = 0;
             distance = 0;
 
-            while (1)
+            dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
+
+            T1 = send_poll1_message(Dev_id, anchor_id, Msg_id);
+            do
             {
-                dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
+                ret = get_msg_from_resp(anchor_id, &T2, &T3, &T4, &T5, &T6, Msg_id);
 
-                T1 = send_poll_message(Dev_id, anchor_id, Msg_id);
-                if (ERR_LOGS_EN)
+                if (ret == FAILURE)
                 {
-                    LOG_INF("POLL %0d sent to anchor nr. %0d.", Msg_id, anchor_id);
+                    dw1000_write_u32(SYS_STATUS, SYS_STATUS_ALL_RX_ERR | SYS_STATUS_RX_OK);
+                    rx_soft_reset();
+
+                    T2 = 0;
+                    T3 = 0;
+                    T4 = 0;
+                    T5 = 0;
+                    T6 = 0;
+
+                    Msg_id++;
+
+                    k_msleep(10000);
+                    T1 = send_poll1_message(Dev_id, anchor_id, Msg_id);
                 }
 
-                dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
-                T4 = 0;
+            } while (T2 == 0 || T3 == 0 || T6 == 0);
 
-                if (get_resp_message(Dev_id, anchor_id, Msg_id, &T4, &distance) == SUCCESS)
-                {
-                    if (INFO_LOGS_EN)
-                    {
-                        LOG_INF("Response %0d received from anchor nr. %0d.", Msg_id, anchor_id);
-                    }
+            LOG_INF_IF_ENABLED("For ranging attempt nr. %0d:", Msg_id);
+            LOG_INF_IF_ENABLED("T1 = %0llX, T4 = %0llX, T5 = %0llX", T1, T4, T5);
+            LOG_INF_IF_ENABLED("T2 = %0llX, T3 = %0llX, T6 = %0llX", T2, T3, T6);
 
-                    if (distance != 0)
-                    {
-                        distances[anchor_id - 1] = distance;
-                        LOG_INF("Distance from anchor %0d is %0.2fm.", anchor_id, distances[anchor_id - 1]);
-                        break;
-                    }
-                    else
-                    {
-                        send_timestamps(Dev_id, anchor_id, T1, T4, Msg_id);
-                        // LOG_INF("For msg = %0d, T1 = %0llX, T4 = %0llX", Msg_id, T1, T4);
+            uint64_t Treply1 = T3 - T2;
+            uint64_t Treply2 = T5 - T4;
+            uint64_t Tround1 = T4 - T1;
+            uint64_t Tround2 = T6 - T3;
 
-                        if (INFO_LOGS_EN)
-                        {
-                            LOG_INF("Sent TS %0d to anchor nr. %0d.", Msg_id, anchor_id);
-                        }
-                    }
-                }
+            LOG_INF_IF_ENABLED("Treply1 = %0llX, Treply2 = %0llX, Tround1 = %0llX, Tround2 = %0llX", Treply1, Treply2, Tround1, Tround2);
 
-                Msg_id++;
-            }
-
-            k_msleep(10);
+            k_msleep(10000);
         }
-        LOG_INF("All distances acquired!");
+        LOG_INF_IF_ENABLED("All distances acquired!\n\r");
     }
 }
