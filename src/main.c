@@ -53,7 +53,7 @@ int main(void)
 
                 if (ret == FAILURE)
                 {
-                    LOG_ERR_IF_ENABLED("Something went wrong. ABandoning this ranging cyle.");
+                    LOG_ERR_IF_ENABLED("Something went wrong. Abandoning this ranging cycle.");
 
                     dw1000_write_u32(SYS_STATUS, SYS_STATUS_ALL_RX_ERR | SYS_STATUS_RX_OK);
                     rx_soft_reset();
@@ -84,10 +84,13 @@ int main(void)
             int64_t Tround2 = T6 - T3;
 
             distance = compute_ds_twr_distance_basic(T1, T2, T3, T4, T5, T6);
+            distances[anchor_id - 1] = distance;
 
-            LOG_WRN("Distance = %0f", distance);
+            LOG_WRN("Distance from board %0d is %0f", anchor_id, distance);
 
             k_msleep(500);
         }
+
+        LOG_INF("All distances acquired!");
     }
 }
