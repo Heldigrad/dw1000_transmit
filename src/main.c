@@ -44,7 +44,7 @@ int main(void)
 
             dw1000_write_u32(SYS_STATUS, 0xFFFFFFFF);
 
-            Msg_id += 1000;
+            Msg_id += 1;
 
             T1 = send_poll1_message(Dev_id, anchor_id, Msg_id);
             do
@@ -64,7 +64,7 @@ int main(void)
                     T5 = 0;
                     T6 = 0;
 
-                    Msg_id += 1000;
+                    Msg_id += 1;
 
                     k_msleep(500);
 
@@ -73,24 +73,19 @@ int main(void)
 
             } while (T2 == 0 || T3 == 0 || T6 == 0);
 
-            clockOffsetRatio = read_carrier_integrator() *
-                               (FREQ_OFFSET_MULTIPLIER * HERTZ_TO_PPM_MULTIPLIER_CHAN_2 / 1.0e6);
-
             LOG_INF_IF_ENABLED("For ranging cycle nr. %0d:", Msg_id);
             LOG_INF_IF_ENABLED("T1 = %0llu, T4 = %0llu, T5 = %0llu", T1, T4, T5);
             LOG_INF_IF_ENABLED("T2 = %0llu, T3 = %0llu, T6 = %0llu", T2, T3, T6);
 
-            int64_t Tround1 = T4 - T1;
-            int64_t Tround2 = T6 - T3;
-
             distance = compute_ds_twr_distance_basic(T1, T2, T3, T4, T5, T6);
             distances[anchor_id - 1] = distance;
 
-            LOG_WRN("Distance from board %0d is %0f", anchor_id, distance);
+            LOG_INF("Distance from board %0d is %0f", anchor_id, distance);
 
             k_msleep(500);
         }
 
         LOG_INF("All distances acquired!");
+        compute_coord(distances);
     }
 }
