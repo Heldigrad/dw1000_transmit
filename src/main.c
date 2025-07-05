@@ -25,8 +25,8 @@ int main(void)
 
     uint8_t Dev_id = TAG_ID;
 
-    bip_init();
-    bip_config();
+    initialize();
+    configure();
 
     static uint64_t T1 = 0, T4 = 0, T6 = 0;
     static uint64_t T2 = 0, T3 = 0, T5 = 0;
